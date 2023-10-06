@@ -131,6 +131,18 @@ TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pcid)
     }
     return newEntry;
 }
+void
+TLB::checkPromotion(TlbEntry *entry, BaseMMU::Mode mode)
+{
+    TypeTLB acc_type = (mode == BaseMMU::Execute) ?
+       TypeTLB::instruction : TypeTLB::data;
+
+    // Hitting an instruction TLB entry on a data access or
+    // a data TLB entry on an instruction access:
+    // promoting the entry to unified
+    if (!(entry->type & acc_type))
+       entry->type = TypeTLB::unified;
+}
 
 TlbEntry *
 TLB::lookup(Addr va, bool update_lru)
@@ -139,6 +151,23 @@ TLB::lookup(Addr va, bool update_lru)
     if (entry && update_lru)
         entry->lruSeq = nextSeq();
     return entry;
+}
+TlbEntry *
+TLB::multiLookup(Addr va, BaseMMU::Mode mode, uint64_t pcid, bool update_lru)
+{
+    TlbEntry * te = lookup(va, update_lru);
+    if (te) {
+        checkPromotion(te, mode);
+    }
+    else{
+        if (auto tlb = static_cast<TLB*>(nextLevel())) {
+            te = tlb->multiLookup(va, mode, pcid, update_lru);
+            if (te){
+                insert(va, *te, pcid);
+            }
+        }
+    }
+    return te;
 }
 
 void
@@ -416,7 +445,7 @@ TLB::translate(const RequestPtr &req,
                 pcid = 0x000;
 
             pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
-            TlbEntry *entry = lookup(pageAlignedVaddr);
+            TlbEntry *entry = multiLookup(pageAlignedVaddr);
 
             if (mode == BaseMMU::Read) {
                 stats.rdAccesses++;
@@ -439,7 +468,7 @@ TLB::translate(const RequestPtr &req,
                         delayedResponse = true;
                         return fault;
                     }
-                    entry = lookup(pageAlignedVaddr);
+                    entry = multiLookup(pageAlignedVaddr);
                     assert(entry);
                 } else {
                     Process *p = tc->getProcessPtr();

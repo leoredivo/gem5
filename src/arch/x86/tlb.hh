@@ -73,6 +73,16 @@ namespace X86ISA
 
         void takeOverFrom(BaseTLB *otlb) override {}
 
+        /** Check if the tlb entry passed as an argument needs to
+        * be "promoted" as a unified entry:
+        * this should happen if we are hitting an instruction TLB entry on a
+        * data access or a data TLB entry on an instruction access:
+        */
+        void checkPromotion(TlbEntry *entry, BaseMMU::Mode mode);
+
+        TlbEntry *multiLookup(Addr va, BaseMMU::Mode mode,
+                      uint64_t pcid, bool update_lru = true);
+
         TlbEntry *lookup(Addr va, bool update_lru = true);
 
         void setConfigAddress(uint32_t addr);

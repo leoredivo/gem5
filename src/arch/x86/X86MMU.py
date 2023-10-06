@@ -37,14 +37,21 @@
 
 from m5.objects.BaseMMU import BaseMMU
 from m5.objects.X86TLB import X86TLB
+from m5.params import *
+from m5.proxy import *
 
 
 class X86MMU(BaseMMU):
     type = "X86MMU"
     cxx_class = "gem5::X86ISA::MMU"
     cxx_header = "arch/x86/mmu.hh"
-    itb = X86TLB(entry_type="instruction")
-    dtb = X86TLB(entry_type="data")
+
+    # L2 TLBs
+    l2_shared = X86TLB(entry_type="unified")
+
+    # L1 TLBs
+    itb = X86TLB(entry_type="instruction", next_level=Parent.l2_shared)
+    dtb = X86TLB(entry_type="data", next_level=Parent.l2_shared)
 
     @classmethod
     def walkerPorts(cls):
