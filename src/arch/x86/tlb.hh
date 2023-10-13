@@ -122,9 +122,8 @@ namespace X86ISA
         struct TlbStats : public statistics::Group
         {
             TlbStats(statistics::Group *parent);
-
-            statistics::Scalar rdAccesses;
-            statistics::Scalar wrAccesses;
+            statistics::Scalar rdHits;
+            statistics::Scalar wrHits;
             statistics::Scalar rdMisses;
             statistics::Scalar wrMisses;
         } stats;
@@ -166,12 +165,15 @@ namespace X86ISA
          * @param req Request to updated in-place.
          * @param tc Thread context that created the request.
          * @param mode Request type (read/write/execute).
+         * @param entry_type type of entry to flush (instruction/data/unified)
          * @return A fault on failure, NoFault otherwise.
          */
         Fault finalizePhysical(const RequestPtr &req, ThreadContext *tc,
                                BaseMMU::Mode mode) const override;
 
         TlbEntry *insert(Addr vpn, const TlbEntry &entry, uint64_t pcid);
+
+        TlbEntry *multiInsert(Addr vpn, const TlbEntry &entry, uint64_t pcid);
 
         // Checkpointing
         void serialize(CheckpointOut &cp) const override;

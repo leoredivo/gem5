@@ -131,6 +131,17 @@ TLB::insert(Addr vpn, const TlbEntry &entry, uint64_t pcid)
     }
     return newEntry;
 }
+
+TlbEntry *
+TLB::multiInsert(Addr vpn, const TlbEntry &entry, uint64_t pcid)
+{
+        TlbEntry *newEntry = insert(vpn, entry, pcid);
+        if (auto tlb = static_cast<TLB*>(nextLevel())){
+                newEntry = tlb->multiInsert(vpn, entry, pcid);
+        }
+        return newEntry;
+}
+
 void
 TLB::checkPromotion(TlbEntry *entry, BaseMMU::Mode mode)
 {
@@ -158,8 +169,18 @@ TLB::multiLookup(Addr va, BaseMMU::Mode mode, uint64_t pcid, bool update_lru)
     TlbEntry * te = lookup(va, update_lru);
     if (te) {
         checkPromotion(te, mode);
+        if (mode == BaseMMU::Read) {
+            stats.rdHits++;
+        } else {
+            stats.wrHits++;
+        }
     }
     else{
+        if (mode == BaseMMU::Read) {
+            stats.rdMisses++;
+        } else {
+            stats.wrMisses++;
+        }
         if (auto tlb = static_cast<TLB*>(nextLevel())) {
             te = tlb->multiLookup(va, mode, pcid, update_lru);
             if (te){
@@ -445,22 +466,12 @@ TLB::translate(const RequestPtr &req,
                 pcid = 0x000;
 
             pageAlignedVaddr = concAddrPcid(pageAlignedVaddr, pcid);
-            TlbEntry *entry = multiLookup(pageAlignedVaddr);
+            TlbEntry *entry = multiLookup(pageAlignedVaddr, mode, pcid);
 
-            if (mode == BaseMMU::Read) {
-                stats.rdAccesses++;
-            } else {
-                stats.wrAccesses++;
-            }
             if (!entry) {
                 DPRINTF(TLB, "Handling a TLB miss for "
                         "address %#x at pc %#x.\n",
                         vaddr, tc->pcState().instAddr());
-                if (mode == BaseMMU::Read) {
-                    stats.rdMisses++;
-                } else {
-                    stats.wrMisses++;
-                }
                 if (FullSystem) {
                     Fault fault = walker->start(tc, translation, req, mode);
                     if (timing || fault != NoFault) {
@@ -468,7 +479,7 @@ TLB::translate(const RequestPtr &req,
                         delayedResponse = true;
                         return fault;
                     }
-                    entry = multiLookup(pageAlignedVaddr);
+                    entry = multiLookup(pageAlignedVaddr, mode, pcid);
                     assert(entry);
                 } else {
                     Process *p = tc->getProcessPtr();
@@ -598,10 +609,10 @@ TLB::getWalker()
 
 TLB::TlbStats::TlbStats(statistics::Group *parent)
   : statistics::Group(parent),
-    ADD_STAT(rdAccesses, statistics::units::Count::get(),
-             "TLB accesses on read requests"),
-    ADD_STAT(wrAccesses, statistics::units::Count::get(),
-             "TLB accesses on write requests"),
+    ADD_STAT(rdHits, statistics::units::Count::get(),
+             "TLB hits on read requests"),
+    ADD_STAT(wrHits, statistics::units::Count::get(),
+             "TLB hits on write requests"),
     ADD_STAT(rdMisses, statistics::units::Count::get(),
              "TLB misses on read requests"),
     ADD_STAT(wrMisses, statistics::units::Count::get(),

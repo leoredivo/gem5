@@ -61,6 +61,7 @@ class MMU : public BaseMMU
     {
         static_cast<TLB*>(itb)->flushNonGlobal();
         static_cast<TLB*>(dtb)->flushNonGlobal();
+        static_cast<TLB*>(l2_shared)->flushNonGlobal();
     }
 
     Walker*

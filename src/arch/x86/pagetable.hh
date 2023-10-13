@@ -43,8 +43,9 @@
 
 #include "arch/x86/page_size.hh"
 #include "base/bitunion.hh"
-#include "base/types.hh"
 #include "base/trie.hh"
+#include "base/types.hh"
+#include "enums/TypeTLB.hh"
 #include "mem/port_proxy.hh"
 #include "sim/serialize.hh"
 
@@ -90,6 +91,9 @@ namespace X86ISA
         bool noExec;
         // A sequence number to keep track of LRU.
         uint64_t lruSeq;
+            // This is used to distinguish between instruction and data entries
+            // in unified tlbs
+        TypeTLB type;
 
         TlbEntryTrie::Handle trieHandle;
 
