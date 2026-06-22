@@ -243,8 +243,8 @@ CXLHostPort::responseCallback(Addr addr, DataBlock data)
     // receive a request for these commands when using Ruby caches for
     // the host. AFAIK, this is only going to happen when using Classic caches.
     if (!pkt->needsResponse()) {
-        DPRINTF(CXLHostPort, "Received response for packet that doesn't
-                                        need a response: %s\n", pkt->print());
+        // DPRINTF(CXLHostPort, "Received response for packet that doesn't
+        //need a response: %s\n", pkt->print());
         delete pkt;
         outstandingRequests.erase(addr);
     } else {
@@ -265,8 +265,8 @@ CXLHostPort::responseCallback(Addr addr, DataBlock data)
 void
 CXLHostPort::scheduleNextProcessResponseEvent(Tick when)
 {
-    panic_if(responseEvent.scheduled(), "Trying to schedule the responseEvent
-                                        that has already been scheduled.\n");
+    panic_if(responseEvent.scheduled(), R"(Trying to schedule the responseEvent
+                                        that has already been scheduled.\n)");
     Tick first_ready_time = responses.firstReadyTime();
     Tick schedule_tick = std::max(when, first_ready_time);
     if (schedule_tick != MaxTick) {
